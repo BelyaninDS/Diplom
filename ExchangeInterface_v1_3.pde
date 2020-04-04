@@ -49,13 +49,17 @@ int max_x = 100;
 int min_x = 0;
 int liftDelay = 10;
 float angle = 10 ;
+boolean grabActive = false;
 Loader loader;
 
 //Датчики положения
 boolean K1,K2,K3,K4,K5,K6,K7,K8;
 
-//Вспомогательные флаги
-boolean grabActive = false;
+//Шаги
+boolean stepCargo1 = false;
+boolean stepCargo2 = false;
+boolean stepWait = true;
+ 
 
 Timer tmr1, tmr2;
 Cargo cargo1, cargo2;
@@ -192,14 +196,11 @@ void draw()
   //Автоматика
   else
   {
-    println(grabActive);
-    println(cargo1.isDelivered);
-    
-    if(!cargo1.isActive && !cargo2.isActive)
-      stepWait();
+    //if(!cargo1.isActive && !cargo2.isActive)
+    stepWait();
     
     //Верхняя лента (К6)   
-    if(cargo1.isActive && cargo2.yPos == 130)
+    if(cargo1.isActive)
     {            
       //Движение груза
       if(cargo1.xPos < -30 && !grabActive)
@@ -213,12 +214,8 @@ void draw()
       if(cargo1.xPos < -20)
         grabActive = true;
                                 
-      if(grabActive && cargo2.xPos >= 0)
+      if(grabActive && !stepCargo2)
         cargo1.Follow(loader.grabX - 120, loader.liftY);
-
-          
-      if(K1 & K5 & grabActive)
-        cargo1.isDelivered = true;        
       
       if(cargo1.isDelivered)
       {
@@ -231,12 +228,9 @@ void draw()
         cargo1.Reset();
         btnTransp1.setColorBackground(colorInactiveBtn);
       }
-      
-      //Перемещение захвата
-      stepDeliverCargo1();
     }
       
-    if(cargo2.isActive && cargo1.yPos == 60)
+    if(cargo2.isActive)
     {  
       //Движение груза
       if(cargo2.xPos < -30 && !grabActive)
@@ -250,7 +244,7 @@ void draw()
       if(cargo2.xPos < -20)
         grabActive = true;
                                 
-      if(grabActive && cargo1.xPos >= 0 )
+      if(grabActive && !stepCargo1)
         cargo2.Follow(loader.grabX - 120, loader.liftY);
 
           
@@ -270,8 +264,6 @@ void draw()
       }
       
       //Перемещение захвата
-      if(!cargo1.isActive | cargo1.isDelivered)
-        stepDeliverCargo2();
     }
   }
   
@@ -692,14 +684,17 @@ class Cargo
  
 
 void stepDeliverCargo1()
-{
+{  
   if(cargo1.isDelivered)
   {
-    if(!K4 && !K1)
-      stepWait();
+    stepCargo1 = false;
+    if(!K4 | !K1)
+      stepWait = true;
+    else if(K1 & K4 & K7)
+      stepDeliverCargo2();     
   }  
   
-  else if(!grabActive)
+  else if(K6)
   {
     if(!K3)
       loader.RaiseUp();
@@ -715,19 +710,22 @@ void stepDeliverCargo1()
       loader.PutDown();
     else if(!K5)
       loader.PutForward();
+    else if(K1 && K5)
+      cargo1.isDelivered = true;   
   }   
 }
 
 
 void stepDeliverCargo2()
-{
+{  
   if(cargo2.isDelivered)
   {
-    if(!K4 && !K1)
-      stepWait();
+    stepCargo2 = false;
+    if(!K4 | !K1)
+      stepWait = true;
   }  
   
-  else if(!grabActive)
+  else if(K7)
   {
     if(!K2)
       loader.RaiseUp();
@@ -743,14 +741,36 @@ void stepDeliverCargo2()
       loader.PutDown();
     else if(!K5)
       loader.PutForward();
+    else if(K1 && K5)
+      cargo2.isDelivered = true;    
   }  
 }
 
 
 void stepWait()
 {
-  if(!K1)
-    loader.PutDown();
-  if(!K4)
-    loader.PushIn();
+  if(stepWait)
+  {
+    if(K1 && K4)
+      stepWait = false;        
+    else
+    {
+      if(!K1)
+        loader.PutDown();
+      if(!K4)
+        loader.PushIn();
+    }
+  }  
+  else
+  {
+  if(K6 && !stepCargo2)
+      stepCargo1 = true;
+  if(stepCargo1)
+    stepDeliverCargo1();
+  
+  if(K7 && !stepCargo1)
+      stepCargo2 = true;
+  if(stepCargo2)    
+    stepDeliverCargo2();
+  }
 }
