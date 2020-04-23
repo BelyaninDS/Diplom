@@ -63,7 +63,6 @@ int max_x = 100;
 int min_x = 0;
 int liftDelay = 10;
 float angle = 10 ;
-boolean grabActive = false;
 Loader loader;
 
 //Датчики положения
@@ -75,7 +74,6 @@ boolean stepCargo2 = false;
 boolean stepWait = true;
   
 Cargo cargo1, cargo2;
-
 
 
 //Инициализация объектов программы
@@ -91,11 +89,11 @@ void setup()
   transporterImg3 = loadImage("Transporter3.png");
   pg = createGraphics(680,300);
   cp5 = new ControlP5(this);
-  font = createFont("calibri", 20);     
+  font = createFont("calibri", 17);     
   
   //Задание параметров окна    
   surface.setTitle("Обмен данными");
-  size(800, 650);
+  size(800, 550);
   background(200, 200, 200); 
   fill(10, 10, 100);               
   textFont(font);
@@ -135,7 +133,7 @@ void setup()
   //Создание текстового поля вывода  
   textarea = cp5.addTextarea("txt")
                   .setPosition(10,30)
-                  .setSize(180,30)
+                  .setSize(110,30)
                   .setFont(createFont("arial",20))
                   .setLineHeight(20)
                   .hideScrollbar()
@@ -150,6 +148,9 @@ void setup()
   //Датчик достижения макс. высоты
   fill(color(150,0,0));
   rect(70,180,10,10);
+  //Датчик активации захвата
+  fill(color(0,150,0));
+  rect(85,180,10,10);
 }
 
 
@@ -160,9 +161,9 @@ void draw()
      received = serial.read();
      textarea.setText(ToBinary(received,8));     
   }
-   
-//Кнопки--------------------------------  
-  
+
+//Кнопки--------------------------------    
+  //Аварийный режим
   if(failure)
   {
     fill(color(255,0,0));
@@ -185,44 +186,50 @@ void draw()
       cargo2.Reset();
     }
   }  
+  //Штатный режим
   else
   {
     stroke(color(200));
     fill(color(200));
     rect(500,150,100,-20);
 
-    //Подача грузов на ленты
     if(manualControl)
     {
+      //Подача груза на ленту К7
       if (btnTransp1.isPressed() && !cargo1.isActive)
       {
         btnTransp1.setColorBackground(colorLockedBtn);
         cargo1.isActive = true;    
       }
       
+      //Подача груза на ленту К7
       if (btnTransp2.isPressed() && !cargo2.isActive)
       {
         btnTransp2.setColorBackground(colorLockedBtn);
         cargo2.isActive = true;
       }
+      
+      //Активация демо-режима
+      if (btn_demo.isPressed())
+      {   
+        manualControl = false;
+        btn_demo.setColorBackground(colorLockedBtn);
+        btnTransp1.setColorBackground(colorLockedBtn);
+        btnTransp2.setColorBackground(colorLockedBtn);
+        
+        loader.Reset();
+        cargo1.Reset();
+        cargo2.Reset();        
+            
+        stroke(color(0));
+        fill(color(150,0,0));
+        rect(70,180,10,10);
+        
+        cargo1.isActive = true;
+        cargo2.isActive = true;
+      }        
     }
-    
-    //Активация демо-режима
-    if (btn_demo.isPressed() && manualControl)
-    {   
-      manualControl = false;
-      btn_demo.setColorBackground(colorLockedBtn);
-      btnTransp1.setColorBackground(colorLockedBtn);
-      btnTransp2.setColorBackground(colorLockedBtn);
-      
-      loader.Reset();
-      cargo1.Reset();
-      cargo2.Reset();
-      
-      cargo1.isActive = true;
-      cargo2.isActive = true;
-    }     
-    
+        
     //Сброс демо-режима
     if(!cargo1.isActive & !cargo2.isActive & !manualControl)
     {
@@ -234,12 +241,9 @@ void draw()
        loader.Reset();
        cargo1.Reset();
        cargo2.Reset();
-        
-       cargo1.isActive = true;
-       cargo2.isActive = true;
     }     
-      
-               
+     
+    //Сообщение о включении демо-режима                
     if(!manualControl)
     {
       fill(color(255,0,0));
@@ -253,12 +257,24 @@ void draw()
     }
   }
   
-    
+  //Датчик активации захвата
+  stroke(color(0));
+  if(loader.grabActive)
+  {
+    fill(color(0,230,0));
+    rect(85,180,10,10);   
+  }
+  else
+  {
+      fill(color(0,150,0));
+      rect(85,180,10,10);   
+  }
 //Управление+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  //От контроллера----------------------------------------------------------------   
+  //От контроллера-------------------------------------------------------------------   
     //Подъем погрузчика
   if(manualControl) 
   {
+    //Штатный режим
     if(!failure)
     {
       //Поднятие погрузчика и срабатывание датчика достижения макс. высоты
@@ -288,9 +304,9 @@ void draw()
         
       //Активация Захвата
       if((received & 16) == 16) 
-         grabActive = true;
+         loader.grabActive = true;
       else
-         grabActive = false;
+         loader.grabActive = false;
     }     
                     
     //Лента K6
@@ -298,9 +314,9 @@ void draw()
     {           
       if(!failure)
       {      
-        if(grabActive & ((cargo1.xPos < -20 & K3 & K5 & !cargo2.isGrabbed) | cargo1.isGrabbed))
-          cargo1.Follow(loader.grabX - 120, loader.liftY);
-        else if(!(grabActive & K3 & K5) && cargo1.xPos <= -30)      
+        if(loader.grabActive & ((cargo1.xPos < -25 & K3 & K5 & !cargo2.isGrabbed) | cargo1.isGrabbed))
+          cargo1.Follow(loader.grabX - 125, loader.liftY);
+        else if(!(loader.grabActive & K3 & K5) && cargo1.xPos <= -30)      
           failure = true;
           
         if((received | 223) == 223 & cargo1.yPos == cargo1.startY)
@@ -309,7 +325,7 @@ void draw()
         if(cargo1.yPos == 200 && cargo1.xPos > -30)
           cargo1.isDelivered = true;
             
-        if((received | 127) == 127 && cargo1.isDelivered)
+        if((received | 127) == 127 & cargo1.isDelivered & !loader.grabActive)
         {
           cargo1.xPos++;
           cargo1.isGrabbed = false;
@@ -328,9 +344,9 @@ void draw()
     {     
       if(!failure)
       {      
-        if(grabActive & ((cargo2.xPos < -20 & K2 & K5 & !cargo1.isGrabbed) | cargo2.isGrabbed))
-          cargo2.Follow(loader.grabX - 120, loader.liftY);
-        else if(!(grabActive & K2 & K5) && cargo2.xPos <= -30) 
+        if(loader.grabActive & ((cargo2.xPos < -25 & K2 & K5 & !cargo1.isGrabbed) | cargo2.isGrabbed))
+          cargo2.Follow(loader.grabX - 125, loader.liftY);
+        else if(!(loader.grabActive & K2 & K5) && cargo2.xPos <= -30) 
           failure = true;
         
         if((received | 191) == 191 && cargo2.yPos == cargo2.startY)
@@ -345,7 +361,7 @@ void draw()
           cargo1.isGrabbed = false;
         }
              
-        if(K8 && cargo2.isDelivered)
+        if(K8 && cargo2.isDelivered & !loader.grabActive)
         {
           cargo2.Reset();
           btnTransp2.setColorBackground(colorInactiveBtn);
@@ -356,7 +372,7 @@ void draw()
     //Авария
     if(failure)
     {
-      if(grabActive)
+      if(loader.grabActive)
       {
         if(!cargo1.isGrabbed && cargo1.xPos <= -30)
           cargo1.yPos += 2;
@@ -372,69 +388,61 @@ void draw()
           cargo2.yPos += 2;
       } 
     }   
-  }
-    
+  }    
   //Демо-режим-------------------------------------------------------------------
   else
   {
     //Переходим в шаг ожидания по умлочанию, оттуда по ситуации на остальные шаги
-    stepWait();
-    
+    StepWait();
+    println(stepWait);
     //Верхняя лента (К6)   
     if(cargo1.isActive)
     {            
       //Движение груза                  
-      if((!K6 & !grabActive & !cargo1.isDelivered))
+      if((!K6 & !loader.grabActive & !cargo1.isDelivered))
         cargo1.xPos--;      
-      else if(K3 && K5 & !grabActive)
+      else if(K3 && K5 & !loader.grabActive)
         cargo1.xPos--;
-
-      if(K3 && K5)
-        grabActive = true;
                                 
-      if(grabActive && !stepCargo2)
-        cargo1.Follow(loader.grabX - 120, loader.liftY);
+      if(loader.grabActive && !stepCargo2)
+        cargo1.Follow(loader.grabX - 125, loader.liftY);
       
       if(cargo1.isDelivered)
       {
         cargo1.xPos++;
-        grabActive = false;
+        loader.grabActive = false;
       }  
       
       if(K8 && cargo1.isDelivered)
       {
         cargo1.Reset();
-        btnTransp1.setColorBackground(colorInactiveBtn);
       }
     }
-      
+    
+    //Нижнияя лента(К7)
     if(cargo2.isActive)
     {  
       //Движение груза                   
-      if((!K7 & !grabActive & !cargo2.isDelivered))
+      if((!K7 & !loader.grabActive & !cargo2.isDelivered))
         cargo2.xPos--;      
-      else if(K2 && K5 & !grabActive)
+      else if(K2 && K5 & !loader.grabActive)
         cargo2.xPos--;
-
-      if(K2 && K5)
-        grabActive = true;
                                 
-      if(grabActive && !stepCargo1)
-        cargo2.Follow(loader.grabX - 120, loader.liftY);
+      if(loader.grabActive && !stepCargo1)
+        cargo2.Follow(loader.grabX - 125, loader.liftY);
           
-      if(K1 & K5 & grabActive)
+      if(K1 & K5 & loader.grabActive)
         cargo2.isDelivered = true;        
       
       if(cargo2.isDelivered)
       {
         cargo2.xPos++;
-        grabActive = false;
+        loader.grabActive = false;
       }  
       
       if(K8 && cargo2.isDelivered)
       {
         cargo2.Reset();
-        btnTransp2.setColorBackground(colorInactiveBtn);
       }
     }
   }
@@ -450,27 +458,48 @@ void draw()
     pg.translate(520,0);
     pg.line(0,60,100,60);
     pg.line(0,76,100,76);   
-    if((received | 223) == 223)
-      frame1 = pgTransporterAnimL(-8,60,frame1);
-    else
-      pg.image(transporterImg,-8,60);
         
     //Конвейер 2
     pg.line(0,130,100,130);
     pg.line(0,146,100,146);
-    if((received | 191) == 191)
-      frame2 = pgTransporterAnimL(-8,130,frame2);
-    else
-      pg.image(transporterImg,-8,130);
     
     //Конвейер 3
     pg.line(0,200,100,200);
     pg.line(0,216,100,216);
-    if((received | 127) == 127)
-      frame3 = pgTransporterAnimR(-8,200,frame3);
-    else
-      pg.image(transporterImg,-8,200);
+   
+    //Анимаци вращения лент
+    if(manualControl)
+    {
+      if((received | 223) == 223)
+        frame1 = pgTransporterAnimL(-8,60,frame1);
+      else
+        pg.image(transporterImg,-8,60);
         
+      if((received | 191) == 191)
+        frame2 = pgTransporterAnimL(-8,130,frame2);
+      else
+        pg.image(transporterImg,-8,130);
+        
+      if((received | 127) == 127)
+        frame3 = pgTransporterAnimR(-8,200,frame3);
+      else
+        pg.image(transporterImg,-8,200);        
+    }
+    else
+    {
+      if(!K6)
+        frame1 = pgTransporterAnimL(-8,60,frame1);
+      else
+        pg.image(transporterImg,-8,60);
+        
+      if(!K7)
+        frame2 = pgTransporterAnimL(-8,130,frame2);
+      else
+        pg.image(transporterImg,-8,130);
+        
+      frame3 = pgTransporterAnimR(-8,200,frame3);
+    }   
+             
    //Грузы-------------------------------------------------------------------------
     //Груз 1 (лента К6)
     pg.fill(180,0,0);
@@ -569,7 +598,7 @@ void draw()
     pg.text("K5",93 + max_x,23);
     
     //K6
-    if(cargo1.xPos == 0 & cargo1.yPos == 60)
+    if(cargo1.xPos == -10 & cargo1.yPos == 60)
     {
       pg.fill(255,255,0);
       K6 = true; 
@@ -584,7 +613,7 @@ void draw()
     pg.text("K6",423 + max_x,28);
     
     //K7
-    if(cargo2.xPos == 0 & cargo2.yPos == 130)
+    if(cargo2.xPos == -10 & cargo2.yPos == 130)
     {
       pg.fill(255,255,0);
       K7 = true; 
@@ -662,7 +691,7 @@ boolean overRect(int x, int y, int width, int height)
     return false;  
 }
 
-//Анимация лент (движение вправо)
+//Анимация лент (движение вправо), возвращает номер фрейма анимации
 int pgTransporterAnimR(int x, int y, int frame)
 {
   switch(frame)
@@ -691,7 +720,7 @@ int pgTransporterAnimR(int x, int y, int frame)
   }
   return frame;
 }
-
+//Движение влево
 int pgTransporterAnimL(int x, int y, int frame)
 {
   switch(frame)
@@ -722,9 +751,6 @@ int pgTransporterAnimL(int x, int y, int frame)
 }
 
 
-
-
-
 //Преобразование строки заданной длины в двоичнное число
 String ToBinary(int x, int len)
 {
@@ -751,6 +777,7 @@ class Loader
   private int max_y;
   private float angle;
   private int liftDelay;
+  private boolean grabActive;
   
   Loader(int liftX,int liftY, int grabX, int min_x, int max_x, int min_y, int max_y, float angle, int liftDelay)
   {
@@ -763,6 +790,7 @@ class Loader
     this.max_y = max_y;
     this.angle = angle;
     this.liftDelay = liftDelay;
+    this.grabActive = false;
   }
   
   public void RaiseUp()
@@ -801,10 +829,11 @@ class Loader
 
   public void Reset()
   {
+    this.grabActive = false;
     this.liftX = 0;
     this.liftY = 200;
     this.grabX = 0;
-    this.angle = 10;
+    this.angle = 10;    
   }
 }
 
@@ -847,7 +876,7 @@ class Cargo
    this.isGrabbed = true;
  } 
 } 
- 
+
 //Шаги (для управления автоматикой)++++++++++++++++++++++++++++++++++++++++++++++++++
 //Доставка груза 1 с лнты К6 на ленту К8
 void stepDeliverCargo1()
@@ -856,20 +885,21 @@ void stepDeliverCargo1()
   {
     stepCargo1 = false;
     if(!K4 | !K1)
+    {
       stepWait = true;
-    else if(K1 & K4 & K7)
-      stepDeliverCargo2();     
-  }  
-  
+      StepWait();
+    }   
+  }    
   else if(K6)
   {
     if(!K3)
       loader.RaiseUp();
     else if(!K5)
       loader.PutForward();
-  }
-  
-  else if(grabActive)
+    else
+      loader.grabActive = true;
+  }  
+  else if(loader.grabActive)
   {
     if(!K4 && K3)
       loader.PushIn();
@@ -882,7 +912,6 @@ void stepDeliverCargo1()
   }   
 }
 
-
 //Доставка груза 2 с лнты К7 на ленту К8
 void stepDeliverCargo2()
 {  
@@ -890,18 +919,21 @@ void stepDeliverCargo2()
   {
     stepCargo2 = false;
     if(!K4 | !K1)
+    {
       stepWait = true;
-  }  
-  
+      StepWait();
+    }  
+  }   
   else if(K7)
   {
     if(!K2)
       loader.RaiseUp();
     else if(!K5)
       loader.PutForward();
-  }
-  
-  else if(grabActive)
+    else
+      loader.grabActive = true;
+  } 
+  else if(loader.grabActive)
   {
     if(!K4 && K2)
       loader.PushIn();
@@ -915,11 +947,11 @@ void stepDeliverCargo2()
 }
 
 //Ожидание, возарвщение погрузчика в исходное положение
-void stepWait()
+void StepWait()
 {
   if(stepWait)
   {
-    if(K1 && K4)
+    if(K1 & K4)
       stepWait = false;        
     else
     {
@@ -931,14 +963,14 @@ void stepWait()
   }  
   else
   {
-  if(K6 && !stepCargo2)
-      stepCargo1 = true;
-  if(stepCargo1)
-    stepDeliverCargo1();
-  
-  if(K7 && !stepCargo1)
-      stepCargo2 = true;
-  if(stepCargo2)    
-    stepDeliverCargo2();
+    if(K6 && !stepCargo2)
+        stepCargo1 = true;
+    if(stepCargo1)
+      stepDeliverCargo1();
+    
+    if(K7 && !stepCargo1)
+       stepCargo2 = true;
+    if(stepCargo2)    
+      stepDeliverCargo2();
   }
 }
