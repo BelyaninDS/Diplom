@@ -46,6 +46,12 @@ int btnDemo_width = 90;
 int btnDemo_height = 40;
 boolean manualControl = true;
 
+Button btn_reset;
+int btnRes_xPos = 300;
+int btnRes_yPos = 60;
+int btnRes_width = 90;
+int btnRes_height = 40;
+
 Button btn_failureReset;
 int btnFRes_xPos = 400;
 int btnFRes_yPos = 105;
@@ -124,6 +130,12 @@ void setup()
     .setFont(font)
     .setColorBackground(colorInactiveBtn);  
   
+  btn_reset = cp5.addButton("Сброс")     
+    .setPosition(btnRes_xPos, btnRes_yPos)  
+    .setSize(btnRes_width, btnRes_height)      
+    .setFont(font)
+    .setColorBackground(colorInactiveBtn);  
+  
   btn_failureReset = cp5.addButton("Сброс ош.")     
     .setPosition(btnFRes_xPos, btnFRes_yPos)  
     .setSize(btnFRes_width, btnFRes_height)      
@@ -172,6 +184,7 @@ void draw()
     btnTransp1.setColorBackground(colorLockedBtn);  
     btnTransp2.setColorBackground(colorLockedBtn);  
     btn_demo.setColorBackground(colorLockedBtn);  
+    btn_reset.setColorBackground(colorLockedBtn);  
     btn_failureReset.setColorBackground(colorInactiveBtn);  
         
     if (btn_failureReset.isPressed())
@@ -179,6 +192,7 @@ void draw()
       btnTransp1.setColorBackground(colorInactiveBtn);  
       btnTransp2.setColorBackground(colorInactiveBtn);  
       btn_demo.setColorBackground(colorInactiveBtn);  
+      btn_reset.setColorBackground(colorInactiveBtn);  
       btn_failureReset.setColorBackground(colorLockedBtn);  
       
       failure = false;
@@ -189,13 +203,28 @@ void draw()
   //Штатный режим
   else
   {
+    //Удаление сообщения об аварии
     stroke(color(200));
     fill(color(200));
     rect(500,150,100,-20);
-
+    
+    //Сброс модели
+    if (btn_reset.isPressed())
+    {
+      loader.Reset();
+      cargo1.Reset();
+      cargo2.Reset();
+        
+      btnTransp1.setColorBackground(colorInactiveBtn);  
+      btnTransp2.setColorBackground(colorInactiveBtn);
+      btn_demo.setColorBackground(colorInactiveBtn);
+        
+      manualControl = true;
+    }
+    
     if(manualControl)
     {
-      //Подача груза на ленту К7
+      //Подача груза на ленту К6
       if (btnTransp1.isPressed() && !cargo1.isActive)
       {
         btnTransp1.setColorBackground(colorLockedBtn);
@@ -208,7 +237,7 @@ void draw()
         btnTransp2.setColorBackground(colorLockedBtn);
         cargo2.isActive = true;
       }
-      
+            
       //Активация демо-режима
       if (btn_demo.isPressed())
       {   
@@ -242,7 +271,7 @@ void draw()
        cargo1.Reset();
        cargo2.Reset();
     }     
-     
+         
     //Сообщение о включении демо-режима                
     if(!manualControl)
     {
@@ -883,12 +912,13 @@ void stepDeliverCargo1()
 {  
   if(cargo1.isDelivered)
   {
-    stepCargo1 = false;
-    if(!K4 | !K1)
+    loader.PushIn();
+    if(K4 && K1)
     {
+      stepCargo1 = false;
       stepWait = true;
       StepWait();
-    }   
+    }  
   }    
   else if(K6)
   {
@@ -917,9 +947,11 @@ void stepDeliverCargo2()
 {  
   if(cargo2.isDelivered)
   {
-    stepCargo2 = false;
-    if(!K4 | !K1)
+    loader.PutDown();
+    loader.PushIn();
+    if(K4 && K1)
     {
+      stepCargo2 = false;
       stepWait = true;
       StepWait();
     }  
