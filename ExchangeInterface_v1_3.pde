@@ -343,7 +343,7 @@ void draw()
     {           
       if(!failure)
       {      
-        if(loader.grabActive & ((cargo1.xPos < -25 & K3 & K5 & !cargo2.isGrabbed) | cargo1.isGrabbed))
+        if(loader.grabActive & ((cargo1.xPos <= -10 & K3 & K5 & !cargo2.isGrabbed) | cargo1.isGrabbed))
           cargo1.Follow(loader.grabX - 125, loader.liftY);
         else if(!(loader.grabActive & K3 & K5) && cargo1.xPos <= -30)      
           failure = true;
@@ -373,7 +373,7 @@ void draw()
     {     
       if(!failure)
       {      
-        if(loader.grabActive & ((cargo2.xPos < -25 & K2 & K5 & !cargo1.isGrabbed) | cargo2.isGrabbed))
+        if(loader.grabActive & ((cargo2.xPos <= -10 & K2 & K5 & !cargo1.isGrabbed) | cargo2.isGrabbed))
           cargo2.Follow(loader.grabX - 125, loader.liftY);
         else if(!(loader.grabActive & K2 & K5) && cargo2.xPos <= -30) 
           failure = true;
@@ -423,7 +423,7 @@ void draw()
   {
     //Переходим в шаг ожидания по умлочанию, оттуда по ситуации на остальные шаги
     StepWait();
-    println(stepWait);
+
     //Верхняя лента (К6)   
     if(cargo1.isActive)
     {            
